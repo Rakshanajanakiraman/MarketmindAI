@@ -1,158 +1,189 @@
 import { useState } from 'react';
 import {
-  Search, Plus, Download, Eye, Edit2, Trash2, Mail, Phone, MapPin,
-  Users, UserCheck, ShoppingBag, ArrowLeft, X,
+  PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend,
+  ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, ZAxis,
+} from 'recharts';
+import {
+  Search, Download, Users, Award, AlertTriangle, DollarSign,
+  TrendingUp, TrendingDown, Filter,
 } from 'lucide-react';
-import { customers, customerPurchaseHistory, formatCurrency } from '../../data/mockData';
+import {
+  customerKPIs, customerSegments, rfmScatterData, customerTable,
+  formatCurrency, formatNumber,
+} from '../../data/mockData';
 import './Customers.css';
 
-export default function Customers() {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'table'
-  const [selectedCustomer, setSelectedCustomer] = useState(null);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [newCustomer, setNewCustomer] = useState({
-    name: '', email: '', phone: '', address: '',
-  });
+const segmentColors = {
+  'Champions': '#6366f1',
+  'Loyal Customers': '#10b981',
+  'Potential Loyalists': '#0ea5e9',
+  'New Customers': '#f59e0b',
+  'At Risk': '#f43f5e',
+  'Need Attention': '#8b5cf6',
+  'About to Sleep': '#ec4899',
+  'Hibernating': '#94a3b8',
+  'Lost': '#64748b',
+};
 
-  const filtered = customers.filter((c) => {
-    const matchesSearch =
-      c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || c.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+const segmentBadgeClass = (segment) => {
+  switch (segment) {
+    case 'Champions': return 'primary';
+    case 'Loyal Customers': return 'success';
+    case 'Potential Loyalists': return 'info';
+    case 'New Customers': return 'warning';
+    case 'At Risk': case 'Lost': return 'danger';
+    default: return 'neutral';
+  }
+};
 
-  const activeCount = customers.filter((c) => c.status === 'active').length;
-  const totalSpentAll = customers.reduce((s, c) => s + c.totalSpent, 0);
-
-  if (selectedCustomer) {
-    const c = selectedCustomer;
+const CustomScatterTooltip = ({ active, payload }) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
     return (
-      <div className="page-content animate-in">
-        <button className="btn btn-ghost" onClick={() => setSelectedCustomer(null)} style={{ marginBottom: '20px' }}>
-          <ArrowLeft size={18} /> Back to Customers
-        </button>
-
-        <div className="customer-detail-grid">
-          {/* Profile Card */}
-          <div className="card customer-profile-card">
-            <div className="card-body">
-              <div className="customer-avatar-large">
-                {c.name.split(' ').map((n) => n[0]).join('')}
-              </div>
-              <h2 className="customer-name">{c.name}</h2>
-              <span className={`badge ${c.status === 'active' ? 'success' : 'neutral'}`}>
-                {c.status === 'active' ? 'Active' : 'Inactive'}
-              </span>
-              <div className="customer-contact-info">
-                <div className="contact-item">
-                  <Mail size={16} />
-                  <span>{c.email}</span>
-                </div>
-                <div className="contact-item">
-                  <Phone size={16} />
-                  <span>{c.phone}</span>
-                </div>
-                <div className="contact-item">
-                  <MapPin size={16} />
-                  <span>{c.address}</span>
-                </div>
-              </div>
-              <div className="customer-stats-detail">
-                <div className="stat-item">
-                  <span className="stat-val">{c.totalPurchases}</span>
-                  <span className="stat-lbl">Purchases</span>
-                </div>
-                <div className="stat-item">
-                  <span className="stat-val">{formatCurrency(c.totalSpent)}</span>
-                  <span className="stat-lbl">Total Spent</span>
-                </div>
-                <div className="stat-item">
-                  <span className="stat-val">{c.joinDate}</span>
-                  <span className="stat-lbl">Member Since</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Purchase History */}
-          <div className="card">
-            <div className="card-header">
-              <h3>Purchase History</h3>
-            </div>
-            <div className="card-body">
-              <table className="data-table" id="purchase-history-table">
-                <thead>
-                  <tr>
-                    <th>Order ID</th>
-                    <th>Date</th>
-                    <th>Product</th>
-                    <th>Qty</th>
-                    <th>Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {customerPurchaseHistory.map((ph) => (
-                    <tr key={ph.id}>
-                      <td style={{ fontWeight: 600, color: 'var(--primary-600)' }}>{ph.id}</td>
-                      <td>{ph.date}</td>
-                      <td style={{ fontWeight: 500 }}>{ph.product}</td>
-                      <td>{ph.quantity}</td>
-                      <td style={{ fontWeight: 600 }}>{formatCurrency(ph.amount)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+      <div className="chart-tooltip">
+        <p className="tooltip-label">Customer #{data.customerId}</p>
+        <p className="tooltip-value" style={{ color: segmentColors[data.segment] }}>{data.segment}</p>
+        <p className="tooltip-value" style={{ color: '#94a3b8' }}>Recency Score: {data.x}</p>
+        <p className="tooltip-value" style={{ color: '#94a3b8' }}>Frequency Score: {data.y}</p>
+        <p className="tooltip-value" style={{ color: '#10b981' }}>LTV: {formatCurrency(data.monetary)}</p>
       </div>
     );
   }
+  return null;
+};
+
+export default function Customers() {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [segmentFilter, setSegmentFilter] = useState('all');
+  const [countryFilter, setCountryFilter] = useState('all');
+
+  const countries = [...new Set(customerTable.map(c => c.country))];
+
+  const filtered = customerTable.filter((c) => {
+    const matchesSearch = String(c.customerId).includes(searchTerm);
+    const matchesSegment = segmentFilter === 'all' || c.segment === segmentFilter;
+    const matchesCountry = countryFilter === 'all' || c.country === countryFilter;
+    return matchesSearch && matchesSegment && matchesCountry;
+  });
 
   return (
     <div className="page-content animate-in">
-      {/* Stats Row */}
-      <div className="customer-stats-row" id="customer-stats">
-        <div className="cust-stat-card">
-          <Users size={22} style={{ color: 'var(--primary-500)' }} />
+      {/* Customer KPIs */}
+      <div className="sales-kpi-row" id="customer-kpi-section">
+        <div className="sales-kpi-card">
+          <div className="sales-kpi-icon" style={{ background: 'var(--primary-50)', color: 'var(--primary-600)' }}>
+            <Users size={22} />
+          </div>
           <div>
-            <span className="cust-stat-value">{customers.length}</span>
-            <span className="cust-stat-label">Total Customers</span>
+            <span className="sales-kpi-label">Known Customers</span>
+            <span className="sales-kpi-value">{formatNumber(customerKPIs.knownCustomers.value)}</span>
           </div>
         </div>
-        <div className="cust-stat-card">
-          <UserCheck size={22} style={{ color: 'var(--accent-500)' }} />
+        <div className="sales-kpi-card">
+          <div className="sales-kpi-icon" style={{ background: 'var(--accent-50)', color: 'var(--accent-600)' }}>
+            <Award size={22} />
+          </div>
           <div>
-            <span className="cust-stat-value">{activeCount}</span>
-            <span className="cust-stat-label">Active</span>
+            <span className="sales-kpi-label">Premium Customers</span>
+            <span className="sales-kpi-value">{formatNumber(customerKPIs.premiumCustomers.value)}</span>
           </div>
         </div>
-        <div className="cust-stat-card">
-          <ShoppingBag size={22} style={{ color: 'var(--warning-500)' }} />
+        <div className="sales-kpi-card">
+          <div className="sales-kpi-icon" style={{ background: 'var(--danger-50)', color: 'var(--danger-600)' }}>
+            <AlertTriangle size={22} />
+          </div>
           <div>
-            <span className="cust-stat-value">{formatCurrency(totalSpentAll)}</span>
-            <span className="cust-stat-label">Total Revenue</span>
+            <span className="sales-kpi-label">At-Risk Customers</span>
+            <span className="sales-kpi-value">{formatNumber(customerKPIs.atRiskCustomers.value)}</span>
+          </div>
+        </div>
+        <div className="sales-kpi-card">
+          <div className="sales-kpi-icon" style={{ background: 'var(--warning-50)', color: 'var(--warning-600)' }}>
+            <DollarSign size={22} />
+          </div>
+          <div>
+            <span className="sales-kpi-label">Avg LTV</span>
+            <span className="sales-kpi-value">{formatCurrency(customerKPIs.avgLTV.value)}</span>
           </div>
         </div>
       </div>
 
-      {/* Toolbar */}
-      <div className="card" id="customers-section">
+      {/* Segment Distribution + RFM Scatter */}
+      <div className="charts-grid" style={{ marginBottom: '24px' }}>
+        {/* Segment Distribution Donut */}
+        <div className="card">
+          <div className="card-header">
+            <h3>Segment Distribution</h3>
+          </div>
+          <div className="card-body">
+            <div className="chart-container" style={{ height: '300px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={customerSegments}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={110}
+                    paddingAngle={2}
+                    dataKey="count"
+                    nameKey="name"
+                    stroke="none"
+                  >
+                    {customerSegments.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(value, name) => [`${value} customers (${customerSegments.find(s => s.name === name)?.percentage}%)`, name]}
+                    contentStyle={{ background: '#0f172a', border: 'none', borderRadius: '10px', color: '#fff', fontSize: '13px' }}
+                    labelStyle={{ color: '#94a3b8' }}
+                  />
+                  <Legend
+                    layout="vertical"
+                    verticalAlign="middle"
+                    align="right"
+                    wrapperStyle={{ fontSize: '12px', lineHeight: '20px' }}
+                    formatter={(value) => <span style={{ color: '#475569', fontWeight: 450 }}>{value}</span>}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+
+        {/* RFM Scatter/Bubble Chart */}
+        <div className="card">
+          <div className="card-header">
+            <h3>RFM Analysis (Scatter Plot)</h3>
+          </div>
+          <div className="card-body">
+            <div className="chart-container" style={{ height: '300px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <ScatterChart margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis type="number" dataKey="x" name="Recency Score" domain={[0, 100]} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} label={{ value: 'Recency →', position: 'bottom', offset: -5, style: { fill: '#94a3b8', fontSize: 11 } }} />
+                  <YAxis type="number" dataKey="y" name="Frequency Score" domain={[0, 100]} axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 11 }} label={{ value: 'Frequency →', angle: -90, position: 'insideLeft', offset: 10, style: { fill: '#94a3b8', fontSize: 11 } }} />
+                  <ZAxis type="number" dataKey="monetary" range={[40, 400]} name="Monetary" />
+                  <Tooltip content={<CustomScatterTooltip />} cursor={{ strokeDasharray: '3 3' }} />
+                  {Object.entries(segmentColors).map(([segment, color]) => {
+                    const segData = rfmScatterData.filter(d => d.segment === segment);
+                    if (segData.length === 0) return null;
+                    return (
+                      <Scatter key={segment} name={segment} data={segData} fill={color} opacity={0.8} />
+                    );
+                  })}
+                </ScatterChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Customer Table */}
+      <div className="card" id="customer-table-section">
         <div className="card-header">
           <h3>Customer Directory</h3>
-          <div className="view-toggle">
-            <button
-              className={`view-btn ${viewMode === 'grid' ? 'active' : ''}`}
-              onClick={() => setViewMode('grid')}
-            >Grid</button>
-            <button
-              className={`view-btn ${viewMode === 'table' ? 'active' : ''}`}
-              onClick={() => setViewMode('table')}
-            >Table</button>
-          </div>
         </div>
         <div className="card-body">
           <div className="toolbar">
@@ -160,147 +191,57 @@ export default function Customers() {
               <Search size={18} className="search-icon" />
               <input
                 type="text"
-                placeholder="Search customers..."
+                placeholder="Search customer ID..."
                 className="form-input"
-                style={{ paddingLeft: '40px', width: '280px' }}
+                style={{ paddingLeft: '40px', width: '240px' }}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 id="customer-search"
               />
             </div>
-            <select
-              className="form-select"
-              style={{ width: '150px' }}
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              id="customer-status-filter"
-            >
-              <option value="all">All Status</option>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
+            <select className="form-select" style={{ width: '170px' }} value={segmentFilter} onChange={(e) => setSegmentFilter(e.target.value)} id="segment-filter">
+              <option value="all">All Segments</option>
+              {customerSegments.map((s) => <option key={s.name} value={s.name}>{s.name}</option>)}
+            </select>
+            <select className="form-select" style={{ width: '160px' }} value={countryFilter} onChange={(e) => setCountryFilter(e.target.value)} id="customer-country-filter">
+              <option value="all">All Countries</option>
+              {countries.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
             <div className="toolbar-right">
-              <button className="btn btn-secondary btn-sm" id="export-customers-btn">
-                <Download size={16} /> Export
-              </button>
-              <button className="btn btn-primary btn-sm" onClick={() => setShowAddModal(true)} id="add-customer-btn">
-                <Plus size={16} /> Add Customer
-              </button>
+              <button className="btn btn-secondary btn-sm" id="export-customers-btn"><Download size={16} /> Export</button>
             </div>
           </div>
 
-          {/* Grid View */}
-          {viewMode === 'grid' ? (
-            <div className="customer-grid" id="customer-grid">
+          <table className="data-table" id="customer-table">
+            <thead>
+              <tr>
+                <th>Customer ID</th>
+                <th>Segment</th>
+                <th>RFM Score</th>
+                <th>Orders</th>
+                <th>LTV</th>
+                <th>Last Active</th>
+                <th>Country</th>
+              </tr>
+            </thead>
+            <tbody>
               {filtered.map((c) => (
-                <div key={c.id} className="customer-card" onClick={() => setSelectedCustomer(c)}>
-                  <div className="customer-card-top">
-                    <div className="customer-avatar">
-                      {c.name.split(' ').map((n) => n[0]).join('')}
-                    </div>
-                    <span className={`status-dot ${c.status === 'active' ? 'active' : 'inactive'}`}></span>
-                  </div>
-                  <h4 className="customer-card-name">{c.name}</h4>
-                  <p className="customer-card-email">{c.email}</p>
-                  <div className="customer-card-stats">
-                    <div>
-                      <span className="cc-stat-val">{c.totalPurchases}</span>
-                      <span className="cc-stat-lbl">Orders</span>
-                    </div>
-                    <div>
-                      <span className="cc-stat-val">{formatCurrency(c.totalSpent)}</span>
-                      <span className="cc-stat-lbl">Spent</span>
-                    </div>
-                  </div>
-                  <div className="customer-card-footer">
-                    <span className="cc-last-purchase">Last: {c.lastPurchase}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <table className="data-table" id="customer-table">
-              <thead>
-                <tr>
-                  <th>Customer</th>
-                  <th>Email</th>
-                  <th>Phone</th>
-                  <th>Orders</th>
-                  <th>Total Spent</th>
-                  <th>Last Purchase</th>
-                  <th>Status</th>
-                  <th>Actions</th>
+                <tr key={c.customerId}>
+                  <td style={{ fontWeight: 600, color: 'var(--primary-600)' }}>#{c.customerId}</td>
+                  <td>
+                    <span className={`badge ${segmentBadgeClass(c.segment)}`}>{c.segment}</span>
+                  </td>
+                  <td><code className="sku-code">{c.rfmScore}</code></td>
+                  <td style={{ fontWeight: 600 }}>{c.orders}</td>
+                  <td style={{ fontWeight: 600 }}>{formatCurrency(c.ltv)}</td>
+                  <td>{c.lastActive}</td>
+                  <td><span className="badge neutral">{c.country}</span></td>
                 </tr>
-              </thead>
-              <tbody>
-                {filtered.map((c) => (
-                  <tr key={c.id}>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <div className="avatar" style={{ width: '32px', height: '32px', fontSize: '0.75rem' }}>
-                          {c.name.split(' ').map((n) => n[0]).join('')}
-                        </div>
-                        <span style={{ fontWeight: 500 }}>{c.name}</span>
-                      </div>
-                    </td>
-                    <td>{c.email}</td>
-                    <td>{c.phone}</td>
-                    <td style={{ fontWeight: 600 }}>{c.totalPurchases}</td>
-                    <td style={{ fontWeight: 600 }}>{formatCurrency(c.totalSpent)}</td>
-                    <td>{c.lastPurchase}</td>
-                    <td>
-                      <span className={`badge ${c.status === 'active' ? 'success' : 'neutral'}`}>
-                        {c.status.charAt(0).toUpperCase() + c.status.slice(1)}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="action-buttons">
-                        <button className="action-btn" title="View" onClick={() => setSelectedCustomer(c)}><Eye size={15} /></button>
-                        <button className="action-btn" title="Edit"><Edit2 size={15} /></button>
-                        <button className="action-btn danger" title="Delete"><Trash2 size={15} /></button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
-
-      {/* Add Customer Modal */}
-      {showAddModal && (
-        <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Add New Customer</h2>
-              <button onClick={() => setShowAddModal(false)}>✕</button>
-            </div>
-            <div className="modal-body">
-              <div className="form-group">
-                <label className="form-label">Full Name</label>
-                <input type="text" className="form-input" placeholder="Enter full name" value={newCustomer.name} onChange={(e) => setNewCustomer({ ...newCustomer, name: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Email</label>
-                <input type="email" className="form-input" placeholder="email@example.com" value={newCustomer.email} onChange={(e) => setNewCustomer({ ...newCustomer, email: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Phone</label>
-                <input type="tel" className="form-input" placeholder="+91 XXXXX XXXXX" value={newCustomer.phone} onChange={(e) => setNewCustomer({ ...newCustomer, phone: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Address</label>
-                <input type="text" className="form-input" placeholder="City, State" value={newCustomer.address} onChange={(e) => setNewCustomer({ ...newCustomer, address: e.target.value })} />
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-secondary" onClick={() => setShowAddModal(false)}>Cancel</button>
-              <button className="btn btn-primary" onClick={() => setShowAddModal(false)}>Add Customer</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

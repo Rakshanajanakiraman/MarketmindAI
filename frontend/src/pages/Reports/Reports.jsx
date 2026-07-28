@@ -3,8 +3,8 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
 import {
-  Download, FileText, Calendar, Clock, HardDrive,
-  ChevronRight, FileDown, Filter,
+  Download, FileText, Clock, HardDrive,
+  ChevronRight, FileDown,
 } from 'lucide-react';
 import {
   reportCategories, recentReports, revenueByCategoryMonthly, formatCurrency,
@@ -37,7 +37,7 @@ export default function Reports() {
       {/* Revenue by Category Chart */}
       <div className="card" style={{ marginBottom: '24px' }} id="revenue-chart-section">
         <div className="card-header">
-          <h3>Revenue by Category</h3>
+          <h3>Revenue by Product Category</h3>
           <div className="toolbar-right">
             <select
               className="form-select"
@@ -62,18 +62,20 @@ export default function Reports() {
               <BarChart data={revenueByCategoryMonthly} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                 <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}K`} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12 }} tickFormatter={(v) => `£${(v / 1000).toFixed(0)}K`} />
                 <Tooltip
                   contentStyle={{ background: '#0f172a', border: 'none', borderRadius: '10px', color: '#fff', fontSize: '13px' }}
                   formatter={(value) => formatCurrency(value)}
                   labelStyle={{ color: '#94a3b8' }}
                 />
-                <Legend wrapperStyle={{ fontSize: '13px' }} />
-                <Bar dataKey="Electronics" fill="#6366f1" radius={[3, 3, 0, 0]} barSize={14} />
-                <Bar dataKey="HomeAppliances" fill="#10b981" name="Home Appliances" radius={[3, 3, 0, 0]} barSize={14} />
-                <Bar dataKey="Fashion" fill="#f59e0b" radius={[3, 3, 0, 0]} barSize={14} />
-                <Bar dataKey="Groceries" fill="#0ea5e9" radius={[3, 3, 0, 0]} barSize={14} />
-                <Bar dataKey="Others" fill="#94a3b8" radius={[3, 3, 0, 0]} barSize={14} />
+                <Legend wrapperStyle={{ fontSize: '12px' }} />
+                <Bar dataKey="HomeDécor" fill="#6366f1" name="Home Décor" radius={[3, 3, 0, 0]} barSize={12} />
+                <Bar dataKey="Kitchenware" fill="#10b981" radius={[3, 3, 0, 0]} barSize={12} />
+                <Bar dataKey="PartySupplies" fill="#f59e0b" name="Party Supplies" radius={[3, 3, 0, 0]} barSize={12} />
+                <Bar dataKey="Bags" fill="#0ea5e9" radius={[3, 3, 0, 0]} barSize={12} />
+                <Bar dataKey="Stationery" fill="#8b5cf6" radius={[3, 3, 0, 0]} barSize={12} />
+                <Bar dataKey="Gifts" fill="#ec4899" radius={[3, 3, 0, 0]} barSize={12} />
+                <Bar dataKey="Other" fill="#94a3b8" radius={[3, 3, 0, 0]} barSize={12} />
               </BarChart>
             </ResponsiveContainer>
           </div>

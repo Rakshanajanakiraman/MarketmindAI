@@ -1,7 +1,7 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
-  ShoppingCart,
+  TrendingUp,
   Package,
   Users,
   Brain,
@@ -14,9 +14,9 @@ import {
 import './Sidebar.css';
 
 const navItems = [
-  { path: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/sales', label: 'Sales', icon: ShoppingCart },
-  { path: '/inventory', label: 'Inventory', icon: Package },
+  { path: '/', label: 'Overview', icon: LayoutDashboard },
+  { path: '/sales', label: 'Sales', icon: TrendingUp },
+  { path: '/products', label: 'Products', icon: Package },
   { path: '/customers', label: 'Customers', icon: Users },
   { path: '/ai-insights', label: 'AI Insights', icon: Brain },
   { path: '/reports', label: 'Reports', icon: FileBarChart },

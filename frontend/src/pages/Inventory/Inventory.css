@@ -1,65 +1,89 @@
-/* ===== Inventory Page Styles ===== */
-.inventory-stats {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr) 1.3fr;
-  gap: 16px;
-  margin-bottom: 24px;
+/* ===== Products (Inventory) Page Styles ===== */
+
+/* Return Alerts */
+.return-alerts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-.inv-stat-card {
+.return-alert-item {
   display: flex;
   align-items: center;
   gap: 14px;
-  background: var(--surface-card);
-  border-radius: var(--radius-lg);
-  padding: 18px 20px;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border-light);
-  box-shadow: var(--shadow-sm);
-  transition: all var(--transition-base);
+  transition: all var(--transition-fast);
 }
 
-.inv-stat-card:hover {
-  box-shadow: var(--shadow-md);
-  transform: translateY(-1px);
+.return-alert-item:hover {
+  background: var(--gray-50);
 }
 
-.inv-stat-card.highlight {
-  background: linear-gradient(135deg, var(--primary-600), var(--primary-500));
-  border: none;
-  color: white;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: center;
+.return-alert-item.critical {
+  border-left: 4px solid var(--danger-500);
+  background: var(--danger-50);
 }
 
-.inv-stat-card.highlight .inv-stat-label {
-  color: rgba(255, 255, 255, 0.8);
+.return-alert-item.warning {
+  border-left: 4px solid var(--warning-500);
+  background: var(--warning-50);
 }
 
-.inv-stat-card.highlight .inv-stat-value {
-  color: white;
+.return-alert-indicator {
+  font-size: 1.2rem;
+  flex-shrink: 0;
 }
 
-.inv-stat-value {
-  display: block;
-  font-family: var(--font-display);
-  font-size: 1.35rem;
+.return-alert-content {
+  flex: 1;
+}
+
+.return-alert-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.return-alert-code {
+  font-family: 'Courier New', monospace;
   font-weight: 700;
+  font-size: 0.88rem;
   color: var(--text-primary);
-  line-height: 1.2;
+  background: var(--gray-100);
+  padding: 2px 8px;
+  border-radius: 4px;
 }
 
-.inv-stat-value.large {
-  font-size: 1.5rem;
-}
-
-.inv-stat-label {
-  display: block;
-  font-size: 0.78rem;
+.return-alert-name {
+  font-size: 0.85rem;
   font-weight: 500;
+  color: var(--text-primary);
+}
+
+.return-alert-stats {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.return-rate-value {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--danger-600);
+}
+
+.return-rate-avg {
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+}
+
+.return-units {
+  font-size: 0.78rem;
   color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
 }
 
 /* SKU Code */
@@ -70,45 +94,4 @@
   padding: 3px 8px;
   border-radius: 4px;
   color: var(--text-secondary);
-}
-
-/* Stock Cell */
-.stock-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.stock-numbers {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-}
-
-.stock-qty {
-  font-weight: 600;
-  font-size: 0.9rem;
-}
-
-.stock-min {
-  font-size: 0.75rem;
-  color: var(--text-tertiary);
-}
-
-/* Faded row for out of stock */
-.row-faded td {
-  opacity: 0.6;
-}
-
-.row-faded:hover td {
-  opacity: 1;
-}
-
-@media (max-width: 1200px) {
-  .inventory-stats {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  .inv-stat-card.highlight {
-    grid-column: span 2;
-  }
 }
