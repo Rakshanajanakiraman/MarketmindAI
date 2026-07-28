@@ -1,0 +1,114 @@
+/* ===== Inventory Page Styles ===== */
+.inventory-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr) 1.3fr;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.inv-stat-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--surface-card);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-base);
+}
+
+.inv-stat-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.inv-stat-card.highlight {
+  background: linear-gradient(135deg, var(--primary-600), var(--primary-500));
+  border: none;
+  color: white;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.inv-stat-card.highlight .inv-stat-label {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.inv-stat-card.highlight .inv-stat-value {
+  color: white;
+}
+
+.inv-stat-value {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.inv-stat-value.large {
+  font-size: 1.5rem;
+}
+
+.inv-stat-label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+/* SKU Code */
+.sku-code {
+  font-family: 'Courier New', monospace;
+  font-size: 0.82rem;
+  background: var(--gray-100);
+  padding: 3px 8px;
+  border-radius: 4px;
+  color: var(--text-secondary);
+}
+
+/* Stock Cell */
+.stock-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.stock-numbers {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.stock-qty {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.stock-min {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+}
+
+/* Faded row for out of stock */
+.row-faded td {
+  opacity: 0.6;
+}
+
+.row-faded:hover td {
+  opacity: 1;
+}
+
+@media (max-width: 1200px) {
+  .inventory-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .inv-stat-card.highlight {
+    grid-column: span 2;
+  }
+}

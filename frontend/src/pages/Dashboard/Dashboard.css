@@ -1,0 +1,82 @@
+/* ===== Dashboard Page Styles ===== */
+
+/* Chart Tabs */
+.chart-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--gray-100);
+  padding: 3px;
+  border-radius: var(--radius-sm);
+}
+
+.chart-tab {
+  padding: 5px 14px;
+  border-radius: 4px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+}
+
+.chart-tab:hover {
+  color: var(--text-primary);
+}
+
+.chart-tab.active {
+  background: var(--surface-card);
+  color: var(--primary-600);
+  box-shadow: var(--shadow-sm);
+  font-weight: 600;
+}
+
+/* Custom Chart Tooltip */
+.chart-tooltip {
+  background: var(--gray-900);
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+}
+
+.chart-tooltip .tooltip-label {
+  color: var(--gray-400);
+  font-size: 0.75rem;
+  margin-bottom: 4px;
+}
+
+.chart-tooltip .tooltip-value {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+/* AI Confidence */
+.ai-confidence {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--primary-200);
+}
+
+.confidence-label {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--primary-600);
+  display: block;
+  margin-bottom: 6px;
+}
+
+.confidence-bar-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.confidence-bar-container .progress-bar {
+  flex: 1;
+}
+
+.confidence-value {
+  font-family: var(--font-display);
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--primary-700);
+}
