@@ -1,4 +1,4 @@
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   TrendingUp,
@@ -10,20 +10,32 @@ import {
   LogOut,
   Sparkles,
   ChevronRight,
+  Shield,
 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import './Sidebar.css';
 
-const navItems = [
-  { path: '/', label: 'Overview', icon: LayoutDashboard },
-  { path: '/sales', label: 'Sales', icon: TrendingUp },
-  { path: '/products', label: 'Products', icon: Package },
-  { path: '/customers', label: 'Customers', icon: Users },
-  { path: '/ai-insights', label: 'AI Insights', icon: Brain },
-  { path: '/reports', label: 'Reports', icon: FileBarChart },
+const allNavItems = [
+  { path: '/', label: 'Overview', icon: LayoutDashboard, roles: ['ADMIN', 'OWNER', 'MANAGER'] },
+  { path: '/sales', label: 'Sales', icon: TrendingUp, roles: ['ADMIN', 'OWNER', 'MANAGER', 'SALES'] },
+  { path: '/products', label: 'Products', icon: Package, roles: ['ADMIN', 'OWNER', 'MANAGER', 'SALES'] },
+  { path: '/customers', label: 'Customers', icon: Users, roles: ['ADMIN', 'OWNER'] },
+  { path: '/ai-insights', label: 'AI Insights', icon: Brain, roles: ['ADMIN', 'OWNER'] },
+  { path: '/reports', label: 'Reports', icon: FileBarChart, roles: ['ADMIN', 'OWNER', 'MANAGER'] },
 ];
 
 export default function Sidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { logout, user } = useAuth();
+  const role = user?.role || 'OWNER';
+
+  const visibleNavItems = allNavItems.filter(item => item.roles.includes(role));
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   return (
     <aside className="sidebar" id="main-sidebar">
@@ -41,7 +53,7 @@ export default function Sidebar() {
       {/* Navigation */}
       <nav className="sidebar-nav">
         <div className="nav-section-label">MAIN MENU</div>
-        {navItems.map((item) => {
+        {visibleNavItems.map((item) => {
           const Icon = item.icon;
           const isActive = location.pathname === item.path;
           return (
@@ -63,15 +75,15 @@ export default function Sidebar() {
       <div className="sidebar-bottom">
         <div className="sidebar-upgrade">
           <div className="upgrade-glow"></div>
-          <Sparkles size={18} className="upgrade-icon" />
-          <p className="upgrade-title">AI Powered</p>
-          <p className="upgrade-desc">Intelligent insights for your business growth</p>
+          <Shield size={18} className="upgrade-icon" />
+          <p className="upgrade-title">{role} Access</p>
+          <p className="upgrade-desc">{user?.email || 'user@marketmind.ai'}</p>
         </div>
         <NavLink to="/settings" className="nav-item" id="nav-settings">
           <Settings size={20} className="nav-icon" />
           <span className="nav-label">Settings</span>
         </NavLink>
-        <button className="nav-item" id="nav-logout">
+        <button className="nav-item" onClick={handleLogout} id="nav-logout">
           <LogOut size={20} className="nav-icon" />
           <span className="nav-label">Logout</span>
         </button>
