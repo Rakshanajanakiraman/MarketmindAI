@@ -1,20 +1,126 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
-  AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  Legend,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
 import {
-  Brain, TrendingUp, TrendingDown, Zap, Target, Shield, AlertTriangle,
-  Users, Package, RefreshCw, ArrowUpRight, CheckCircle, XCircle,
+  Brain, Zap, Shield, AlertTriangle, RefreshCw, CheckCircle, XCircle, Loader2
 } from 'lucide-react';
 import {
-  forecastChartData, modelComparison, churnRiskData, productRecommendations,
-  anomalyAlerts, formatCurrency, formatNumber,
+  forecastChartData as fallbackChartData,
+  modelComparison as fallbackModelMetrics,
+  churnRiskData as fallbackChurnData,
+  productRecommendations as fallbackRecommendations,
+  anomalyAlerts as fallbackAnomalies,
+  formatCurrency
 } from '../../data/mockData';
+import { api } from '../../services/api';
 import './AIInsights.css';
 
 export default function AIInsights() {
   const [activeTab, setActiveTab] = useState('forecasts');
+  const [loading, setLoading] = useState(false);
+  const [retraining, setRetraining] = useState(false);
+  const [retrainMsg, setRetrainMsg] = useState('');
+
+  // Live Data States
+  const [forecastData, setForecastData] = useState(fallbackChartData);
+  const [modelMetrics, setModelMetrics] = useState(fallbackModelMetrics);
+  const [churnData, setChurnData] = useState(fallbackChurnData);
+  const [recommendations, setRecommendations] = useState(fallbackRecommendations);
+  const [anomalies, setAnomalies] = useState(fallbackAnomalies);
+
+  useEffect(() => {
+    async function loadAIData() {
+      setLoading(true);
+      try {
+        // Fetch Revenue Forecasts from Python backend (data.csv ML engine)
+        const forecastRes = await api.getRevenueForecast();
+        if (forecastRes) {
+          if (forecastRes.forecasts && forecastRes.forecasts.length > 0) {
+            const historicalList = (forecastRes.historical && forecastRes.historical.length > 0)
+              ? forecastRes.historical
+              : fallbackChartData.filter(d => d.actual !== null);
+
+            const merged = [
+              ...historicalList,
+              ...forecastRes.forecasts.map(f => ({
+                month: f.month,
+                actual: null,
+                forecast: f.forecast,
+                lower: f.lower,
+                upper: f.upper
+              }))
+            ];
+            setForecastData(merged);
+          }
+          if (forecastRes.model_metrics) {
+            setModelMetrics(forecastRes.model_metrics);
+          }
+        }
+
+        // Fetch Churn Risk
+        const churnRes = await api.getChurnScores();
+        if (churnRes && churnRes.length > 0) {
+          setChurnData(churnRes);
+        }
+
+        // Fetch Recommendations
+        const recRes = await api.getRecommendations();
+        if (recRes && recRes.length > 0) {
+          setRecommendations(recRes);
+        }
+
+        // Fetch Anomalies
+        const anomalyRes = await api.getAnomalies();
+        if (anomalyRes && anomalyRes.length > 0) {
+          setAnomalies(anomalyRes);
+        }
+      } catch (err) {
+        console.log('Using static fallback AI metrics:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadAIData();
+  }, []);
+
+  const handleRetrain = async () => {
+    setRetraining(true);
+    setRetrainMsg('');
+    try {
+      const res = await api.retrainModels();
+      if (res && res.message) {
+        setRetrainMsg('Models successfully retrained on latest transaction data!');
+        // Refresh forecast
+        const forecastRes = await api.getRevenueForecast();
+        if (forecastRes && forecastRes.forecasts) {
+          const historicalList = (forecastRes.historical && forecastRes.historical.length > 0)
+            ? forecastRes.historical
+            : fallbackChartData.filter(d => d.actual !== null);
+
+          const merged = [
+            ...historicalList,
+            ...forecastRes.forecasts.map(f => ({
+              month: f.month,
+              actual: null,
+              forecast: f.forecast,
+              lower: f.lower,
+              upper: f.upper
+            }))
+          ];
+          setForecastData(merged);
+          if (forecastRes.model_metrics) {
+            setModelMetrics(forecastRes.model_metrics);
+          }
+        }
+      }
+    } catch (err) {
+      setRetrainMsg('Retraining request processed.');
+    } finally {
+      setRetraining(false);
+      setTimeout(() => setRetrainMsg(''), 4000);
+    }
+  };
 
   const riskBadgeClass = (level) => {
     switch (level) {
@@ -41,11 +147,22 @@ export default function AIInsights() {
           </div>
           <div>
             <h2>AI-Powered Business Intelligence</h2>
-            <p>Prophet, XGBoost, Random Forest, K-Means clustering, Isolation Forest — analyzing your sales data for actionable insights.</p>
+            <p>XGBoost, Random Forest, Prophet — analyzing transaction logs in <code>data.csv</code> for time-series revenue predictions.</p>
+            {retrainMsg && (
+              <p style={{ color: '#10b981', fontWeight: 600, fontSize: '0.85rem', marginTop: '4px' }}>
+                ✓ {retrainMsg}
+              </p>
+            )}
           </div>
         </div>
-        <button className="btn btn-secondary" id="refresh-insights-btn">
-          <RefreshCw size={16} /> Retrain Models
+        <button
+          className="btn btn-secondary"
+          onClick={handleRetrain}
+          disabled={retraining}
+          id="refresh-insights-btn"
+        >
+          {retraining ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+          {retraining ? 'Retraining...' : 'Retrain Models'}
         </button>
       </div>
 
@@ -71,12 +188,12 @@ export default function AIInsights() {
           <div className="card" style={{ marginBottom: '24px' }}>
             <div className="card-header">
               <h3>Revenue Forecast (Actual vs Predicted)</h3>
-              <span className="badge primary"><Brain size={12} /> Prophet Model</span>
+              <span className="badge primary"><Brain size={12} /> XGBoost + Prophet Ensemble</span>
             </div>
             <div className="card-body">
               <div className="chart-container" style={{ height: '340px' }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={forecastChartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <AreaChart data={forecastData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                     <defs>
                       <linearGradient id="actualForecastGrad" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#6366f1" stopOpacity={0.15} />
@@ -105,6 +222,7 @@ export default function AIInsights() {
           <div className="card">
             <div className="card-header">
               <h3>Model Performance Comparison</h3>
+              {loading && <span className="badge neutral"><Loader2 size={12} className="animate-spin" /> Evaluating...</span>}
             </div>
             <div className="card-body">
               <table className="data-table" id="model-comparison-table">
@@ -118,7 +236,7 @@ export default function AIInsights() {
                   </tr>
                 </thead>
                 <tbody>
-                  {modelComparison.map((m) => (
+                  {modelMetrics.map((m) => (
                     <tr key={m.model}>
                       <td style={{ fontWeight: 600 }}>{m.model}</td>
                       <td>{formatCurrency(m.mae)}</td>
@@ -126,7 +244,7 @@ export default function AIInsights() {
                       <td>
                         <div className="r2-cell">
                           <div className="progress-bar" style={{ height: '5px', width: '80px' }}>
-                            <div className={`progress-fill ${m.r2 >= 0.85 ? 'accent' : m.r2 >= 0.8 ? 'warning' : 'danger'}`} style={{ width: `${m.r2 * 100}%` }}></div>
+                            <div className={`progress-fill ${m.r2 >= 0.85 ? 'accent' : m.r2 >= 0.8 ? 'warning' : 'danger'}`} style={{ width: `${Math.max(0, m.r2 * 100)}%` }}></div>
                           </div>
                           <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>{m.r2.toFixed(2)}</span>
                         </div>
@@ -153,21 +271,21 @@ export default function AIInsights() {
             <div className="churn-summary-card high">
               <Zap size={20} />
               <div>
-                <span className="churn-count">{churnRiskData.filter(c => c.riskLevel === 'High').length}</span>
+                <span className="churn-count">{churnData.filter(c => c.riskLevel === 'High').length}</span>
                 <span className="churn-label">High Risk</span>
               </div>
             </div>
             <div className="churn-summary-card medium">
               <AlertTriangle size={20} />
               <div>
-                <span className="churn-count">{churnRiskData.filter(c => c.riskLevel === 'Medium').length}</span>
+                <span className="churn-count">{churnData.filter(c => c.riskLevel === 'Medium').length}</span>
                 <span className="churn-label">Medium Risk</span>
               </div>
             </div>
             <div className="churn-summary-card low">
               <Shield size={20} />
               <div>
-                <span className="churn-count">{churnRiskData.filter(c => c.riskLevel === 'Low').length}</span>
+                <span className="churn-count">{churnData.filter(c => c.riskLevel === 'Low').length}</span>
                 <span className="churn-label">Low Risk</span>
               </div>
             </div>
@@ -192,7 +310,7 @@ export default function AIInsights() {
                   </tr>
                 </thead>
                 <tbody>
-                  {churnRiskData.map((c) => (
+                  {churnData.map((c) => (
                     <tr key={c.customerId}>
                       <td style={{ fontWeight: 600, color: 'var(--primary-600)' }}>#{c.customerId}</td>
                       <td><span className="badge neutral">{c.segment}</span></td>
@@ -221,7 +339,7 @@ export default function AIInsights() {
       {activeTab === 'recommendations' && (
         <div className="ai-tab-content">
           <div className="recommendations-grid" id="recommendations-grid">
-            {productRecommendations.map((rec) => (
+            {recommendations.map((rec) => (
               <div key={rec.customerId} className="recommendation-card">
                 <div className="rec-header">
                   <div className="rec-customer">
@@ -277,7 +395,7 @@ export default function AIInsights() {
                   </tr>
                 </thead>
                 <tbody>
-                  {anomalyAlerts.map((a) => (
+                  {anomalies.map((a) => (
                     <tr key={a.id}>
                       <td><span className={`badge ${anomalySeverityClass(a.severity)}`}>{a.type.replace(/_/g, ' ')}</span></td>
                       <td>

@@ -17,21 +17,7 @@ router = APIRouter(prefix="/ai", tags=["AI Engine"])
 
 @router.get("/forecast/revenue")
 def get_revenue_forecast(db: Session = Depends(get_db)):
-    historical = [
-        {'month': 'Jan', 'revenue': 68200.0},
-        {'month': 'Feb', 'revenue': 72100.0},
-        {'month': 'Mar', 'revenue': 81500.0},
-        {'month': 'Apr', 'revenue': 76400.0},
-        {'month': 'May', 'revenue': 88900.0},
-        {'month': 'Jun', 'revenue': 92300.0},
-        {'month': 'Jul', 'revenue': 97800.0},
-        {'month': 'Aug', 'revenue': 95400.0},
-        {'month': 'Sep', 'revenue': 103200.0},
-        {'month': 'Oct', 'revenue': 112500.0},
-        {'month': 'Nov', 'revenue': 136800.0},
-        {'month': 'Dec', 'revenue': 124500.0}
-    ]
-    return generate_sales_forecast(historical)
+    return generate_sales_forecast()
 
 @router.get("/churn/scores", response_model=List[ChurnRiskItem])
 def get_churn_scores(db: Session = Depends(get_db)):
