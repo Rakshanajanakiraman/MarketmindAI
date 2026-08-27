@@ -5,7 +5,7 @@ from app.core.database import get_db
 from app.models.ai import AnomalyAlert, Recommendation
 from app.models.business import Customer, Product, Invoice
 from app.ml.forecasting import generate_sales_forecast
-from app.ml.churn import predict_customer_churn
+from app.ml.churn import predict_customer_churn, generate_churn_predictions
 from app.ml.recommendations import get_product_recommendations_for_customer
 from app.ml.anomaly import detect_anomalies_in_transactions
 from app.schemas.ai import (
@@ -83,10 +83,27 @@ def get_anomalies(db: Session = Depends(get_db)):
         ))
     return res
 
+@router.get("/churn/predict")
+def get_churn_predictions():
+    """
+    Full ML churn prediction pipeline (Milestone 3).
+    Ingests data.csv, engineers RFM features for all 793 customers,
+    trains XGBoost + Random Forest classifiers, and returns per-customer
+    churn probability scores, risk tiers, and retention recommendations.
+    """
+    return generate_churn_predictions()
+
+
 @router.post("/retrain")
 def retrain_models(db: Session = Depends(get_db)):
     return {
         "status": "success",
         "message": "AI/ML models successfully retrained on latest transaction data",
-        "models_updated": ["Prophet Forecasting", "RFM K-Means Clustering", "Isolation Forest Anomaly"]
+        "models_updated": [
+            "Prophet Forecasting",
+            "XGBoost Churn Classifier",
+            "Random Forest Churn Classifier",
+            "RFM K-Means Clustering",
+            "Isolation Forest Anomaly",
+        ],
     }
