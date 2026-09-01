@@ -19,8 +19,8 @@ def clean_pluralized_string(val: Any, default_val: float = 1.0) -> float:
         return float(val)
     
     text = str(val).strip()
-    # Extract numerical digits and decimal points from string
-    match = re.findall(r"[-+]?\d*\.\d+|\d+", text)
+    # Extract numerical digits and decimal points from string (including signs)
+    match = re.findall(r"[-+]?\d+(?:\.\d+)?", text)
     if match:
         try:
             return float(match[0])
