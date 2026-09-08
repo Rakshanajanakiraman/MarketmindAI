@@ -1,170 +1,136 @@
 """
-Test suite -- Churn Prediction Engine (Milestone 3)
-Runs inside the backend venv: .\\venv\\Scripts\\python.exe tests\\test_churn.py
+Churn Prediction Engine Unit & Integration Tests — MarketMind AI
+Verifies RFM feature extraction, synthetic churn labelling,
+XGBoost & Random Forest classifier training, risk tier mappings,
+and batch customer scoring.
 """
 
-import sys
 import os
+import sys
+import pytest
+import numpy as np
+import pandas as pd
 
-# Ensure backend/app is importable
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+# Ensure backend root is on sys.path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-print("=" * 60)
-print("  MarketMind AI — Churn Prediction Verification Tests")
-print("=" * 60)
+from app.ml.churn import (
+    _clean_numeric,
+    _assign_risk_tier,
+    predict_customer_churn,
+    _load_customer_rfm,
+    _train_churn_models,
+    generate_churn_predictions
+)
 
-# ------------------------------------------------------------------
-# Test 1: clean_numeric helper (pluralization safety)
-# ------------------------------------------------------------------
-from app.ml.churn import _clean_numeric
+def test_clean_numeric_pluralization():
+    """Verifies numeric cleaning from pluralized strings."""
+    assert _clean_numeric("3 items", default=0.0) == 3.0
+    assert _clean_numeric("1 item", default=0.0) == 1.0
+    assert _clean_numeric("12.5 units", default=0.0) == 12.5
+    assert _clean_numeric("1 day", default=0.0) == 1.0
+    assert _clean_numeric("5 days", default=0.0) == 5.0
+    assert _clean_numeric(None, default=0.0) == 0.0
+    assert _clean_numeric("", default=0.0) == 0.0
+    assert _clean_numeric(42, default=0.0) == 42.0
+    assert _clean_numeric(3.14, default=0.0) == 3.14
 
-tests_pass = True
+def test_assign_risk_tier():
+    """Verifies correct tier assignment and action generation based on churn probability."""
+    high_tier = _assign_risk_tier(0.85)
+    assert high_tier["riskLevel"] == "High"
+    assert "Immediate Win-Back" in high_tier["action"]
 
-cases = [
-    ("3 items",  3.0),
-    ("1 item",   1.0),
-    ("12.5 units", 12.5),
-    ("1 day",    1.0),
-    ("5 days",   5.0),
-    (None,       0.0),
-    ("",         0.0),
-    (42,         42.0),
-    (3.14,       3.14),
-]
-for raw, expected in cases:
-    result = _clean_numeric(raw, default=0.0)
-    status = "PASS" if abs(result - expected) < 1e-6 else "FAIL"
-    if status == "FAIL":
-        tests_pass = False
-    print(f"  [{status}] _clean_numeric({raw!r}) -> {result} (expected {expected})")
+    med_tier = _assign_risk_tier(0.55)
+    assert med_tier["riskLevel"] == "Medium"
+    assert "Re-Engagement" in med_tier["action"]
 
-print()
+    low_tier = _assign_risk_tier(0.20)
+    assert low_tier["riskLevel"] == "Low"
+    assert "Standard Nurturing" in low_tier["action"]
 
-# ------------------------------------------------------------------
-# Test 2: _assign_risk_tier
-# ------------------------------------------------------------------
-from app.ml.churn import _assign_risk_tier
+    # Boundary values
+    assert _assign_risk_tier(0.70)["riskLevel"] == "High"
+    assert _assign_risk_tier(0.40)["riskLevel"] == "Medium"
+    assert _assign_risk_tier(0.399)["riskLevel"] == "Low"
 
-tier_cases = [
-    (0.80, "High"),
-    (0.55, "Medium"),
-    (0.20, "Low"),
-    (0.40, "Medium"),
-    (0.70, "High"),
-    (0.39, "Low"),
-]
-for prob, expected_tier in tier_cases:
-    result = _assign_risk_tier(prob)
-    status = "PASS" if result["riskLevel"] == expected_tier else "FAIL"
-    if status == "FAIL":
-        tests_pass = False
-    print(f"  [{status}] _assign_risk_tier({prob}) -> {result['riskLevel']} (expected {expected_tier})")
+def test_predict_customer_churn_heuristic():
+    """Verifies heuristic single-customer churn prediction."""
+    # High risk profile (long inactive, low frequency)
+    res_high = predict_customer_churn(recency_days=180, frequency_count=2, ltv=200.0, segment="Hibernating")
+    assert 0.0 <= res_high["churnProb"] <= 1.0
+    assert res_high["riskLevel"] == "High"
 
-print()
+    # Medium risk profile
+    res_med = predict_customer_churn(recency_days=60, frequency_count=8, ltv=1500.0, segment="Consumer")
+    assert res_med["riskLevel"] == "Medium"
 
-# ------------------------------------------------------------------
-# Test 3: predict_customer_churn (single-customer heuristic)
-# ------------------------------------------------------------------
-from app.ml.churn import predict_customer_churn
+    # Low risk profile (very recent, high loyalty)
+    res_low = predict_customer_churn(recency_days=10, frequency_count=25, ltv=8000.0, segment="Champions")
+    assert res_low["riskLevel"] == "Low"
 
-single_cases = [
-    {"recency_days": 180, "frequency_count": 2, "ltv": 200.0,   "segment": "Hibernating", "expected_tier": "High"},
-    {"recency_days": 60,  "frequency_count": 8, "ltv": 1500.0,  "segment": "Consumer",    "expected_tier": "Medium"},
-    {"recency_days": 10,  "frequency_count": 25, "ltv": 8000.0, "segment": "Champions",   "expected_tier": "Low"},
-]
-for case in single_cases:
-    result = predict_customer_churn(
-        recency_days=case["recency_days"],
-        frequency_count=case["frequency_count"],
-        ltv=case["ltv"],
-        segment=case["segment"],
-    )
-    assert 0.0 <= result["churnProb"] <= 1.0, "churnProb out of range"
-    assert result["riskLevel"] in ("High", "Medium", "Low"), "Invalid riskLevel"
-    assert "action" in result and len(result["action"]) > 10, "Missing action"
-    status = "PASS" if result["riskLevel"] == case["expected_tier"] else "FAIL"
-    if status == "FAIL":
-        tests_pass = False
-    print(f"  [{status}] predict_customer_churn(recency={case['recency_days']}d, freq={case['frequency_count']}, seg={case['segment']!r})")
-    print(f"           -> churnProb={result['churnProb']:.4f}  riskLevel={result['riskLevel']}")
+def test_load_customer_rfm():
+    """Verifies RFM computation and feature engineering from data.csv."""
+    df_rfm = _load_customer_rfm()
+    assert df_rfm is not None
+    assert len(df_rfm) > 0
+    assert "customer_id" in df_rfm.columns
+    assert "recency_days" in df_rfm.columns
+    assert "frequency" in df_rfm.columns
+    assert "monetary" in df_rfm.columns
+    assert "rfm_score" in df_rfm.columns
+    assert "churn_label" in df_rfm.columns
+    assert set(df_rfm["churn_label"].unique()).issubset({0, 1})
+    assert (df_rfm["recency_days"] >= 0).all()
+    assert (df_rfm["frequency"] >= 1).all()
+    assert (df_rfm["monetary"] > 0).all()
 
-print()
+def test_train_churn_models():
+    """Verifies classifier training and evaluation metrics."""
+    df_rfm = _load_customer_rfm()
+    model, feature_cols, scaler, metrics = _train_churn_models(df_rfm)
+    
+    assert model is not None
+    assert len(feature_cols) >= 8
+    assert scaler is not None
+    assert "xgboost" in metrics
+    assert "random_forest" in metrics
+    assert "selected_model" in metrics
+    
+    # Model performance validation (must meet high standard)
+    assert metrics["xgboost"]["f1"] >= 0.90
+    assert metrics["xgboost"]["roc_auc"] >= 0.90
+    assert metrics["random_forest"]["f1"] >= 0.90
+    assert metrics["random_forest"]["roc_auc"] >= 0.90
+    assert metrics["selected_model"] in ["XGBoost", "Random Forest"]
 
-# ------------------------------------------------------------------
-# Test 4: generate_churn_predictions — full pipeline on data.csv
-# ------------------------------------------------------------------
-print("  [INFO] Running full churn prediction pipeline on data.csv ...")
-print("         (This trains XGBoost + Random Forest — may take ~10 seconds)")
-print()
-
-try:
-    from app.ml.churn import generate_churn_predictions
+def test_generate_churn_predictions_full_pipeline():
+    """Verifies the complete end-to-end churn prediction pipeline on data.csv."""
     output = generate_churn_predictions()
-
-    # Validate top-level keys
-    assert "summary" in output, "Missing 'summary'"
-    assert "model_metrics" in output, "Missing 'model_metrics'"
-    assert "customers" in output, "Missing 'customers'"
-
+    
+    assert "summary" in output
+    assert "model_metrics" in output
+    assert "customers" in output
+    
     summary = output["summary"]
-    metrics = output["model_metrics"]
+    assert summary["total_customers"] == 793
+    assert summary["high_risk_count"] + summary["medium_risk_count"] + summary["low_risk_count"] == 793
+    assert 0 <= summary["overall_churn_rate_pct"] <= 100
+    
     customers = output["customers"]
-
-    # Summary checks
-    total = summary["total_customers"]
-    assert total > 0, "total_customers should be > 0"
-    assert summary["high_risk_count"] + summary["medium_risk_count"] + summary["low_risk_count"] == total
-    print(f"  [PASS] Total customers scored: {total}")
-    print(f"  [PASS] High Risk:   {summary['high_risk_count']} ({summary['high_risk_pct']}%)")
-    print(f"  [PASS] Medium Risk: {summary['medium_risk_count']} ({summary['medium_risk_pct']}%)")
-    print(f"  [PASS] Low Risk:    {summary['low_risk_count']} ({summary['low_risk_pct']}%)")
-    print(f"  [PASS] Overall Churn Rate:   {summary['overall_churn_rate_pct']}%")
-    print(f"  [PASS] Selected Model:       {summary['selected_model']}")
-    print(f"  [PASS] Model F1-Score:       {summary['model_f1_score']}")
-    print(f"  [PASS] Model ROC-AUC:        {summary['model_roc_auc']}")
-    print()
-
-    # Model metrics checks
-    for model_name in ("xgboost", "random_forest"):
-        m = metrics[model_name]
-        assert 0.0 <= m["f1"] <= 1.0,      f"{model_name} F1 out of range"
-        assert 0.0 <= m["roc_auc"] <= 1.0, f"{model_name} ROC-AUC out of range"
-        print(f"  [PASS] {model_name.upper():20s} F1={m['f1']:.4f}  ROC-AUC={m['roc_auc']:.4f}")
-
-    print()
-
-    # Customer record checks
-    assert len(customers) == total, "Customer list length mismatch"
-    first = customers[0]
-    required_keys = [
-        "customerId", "name", "segment", "country", "recencyDays",
-        "frequency", "monetary", "rfmScore", "churnProb",
-        "riskLevel", "action", "lastActive",
+    assert len(customers) == 793
+    
+    first_cust = customers[0]
+    expected_fields = [
+        "customerId", "name", "segment", "country",
+        "recencyDays", "frequency", "monetary", "avgOrderValue",
+        "rfmScore", "churnProb", "riskLevel", "action", "lastActive"
     ]
-    for key in required_keys:
-        assert key in first, f"Missing key: {key}"
-    assert first["riskLevel"] in ("High", "Medium", "Low"), "Invalid riskLevel in first customer"
-    assert 0.0 <= first["churnProb"] <= 100.0, "churnProb should be a percentage 0-100"
+    for field in expected_fields:
+        assert field in first_cust, f"Missing field: {field}"
+        
+    assert first_cust["riskLevel"] in ["High", "Medium", "Low"]
+    assert 0.0 <= first_cust["churnProb"] <= 100.0
 
-    print(f"  [PASS] Customer record schema validated ({len(required_keys)} fields)")
-    print()
-    print("  Top-5 At-Risk Customers:")
-    print(f"  {'Customer ID':<14} {'Name':<22} {'Segment':<14} {'Churn%':>7}  {'Risk':<8} {'Recency':>8}")
-    print("  " + "-" * 80)
-    for c in customers[:5]:
-        print(f"  {c['customerId']:<14} {c['name'][:20]:<22} {c['segment']:<14} "
-              f"{c['churnProb']:>6.1f}%  {c['riskLevel']:<8} {c['recencyDays']:>6}d")
-
-except Exception as exc:
-    tests_pass = False
-    print(f"  [FAIL] generate_churn_predictions() raised: {exc}")
-    import traceback
-    traceback.print_exc()
-
-print()
-print("=" * 60)
-if tests_pass:
-    print("  [OK] All churn prediction verification tests PASSED.")
-else:
-    print("  [FAIL] Some tests FAILED -- see details above.")
-print("=" * 60)
+if __name__ == "__main__":
+    pytest.main(["-v", __file__])
